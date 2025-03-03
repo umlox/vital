@@ -1,7 +1,8 @@
-const { Client, GatewayIntentBits, Collection, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActivityType } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
+const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
 
 dotenv.config();
 
@@ -16,7 +17,15 @@ const client = new Client({
 client.commands = new Collection();
 require('./webhooks/github')(client);
 
-// Enhanced Command Handler for Subfolders
+for (const file of eventFiles) {
+    const event = require(`./events/${file}`);
+    if (event.once) {
+        client.once(event.name, (...args) => event.execute(...args));
+    } else {
+        client.on(event.name, (...args) => event.execute(...args));
+    }
+}
+
 const loadCommands = (dir) => {
   const folders = fs.readdirSync(dir);
 
@@ -27,10 +36,9 @@ const loadCommands = (dir) => {
     for (const file of commandFiles) {
       const filePath = path.join(folderPath, file);
       const command = require(filePath);
-      command.category = folder; // Automatically set category based on folder name
+      command.category = folder;
       client.commands.set(command.name, command);
       
-      // Handle aliases if they exist
       if (command.aliases) {
         command.aliases.forEach(alias => {
           client.commands.set(alias, command);
@@ -40,17 +48,17 @@ const loadCommands = (dir) => {
   }
 };
 
-// Load commands from subfolders
 loadCommands(path.join(__dirname, 'commands'));
 
 client.on('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
+  client.user.setActivity('.help | /vitalrocks', { type: ActivityType.Watching });
 });
 
 client.on('messageCreate', (message) => {
   if (message.author.bot) return;
 
-  if (message.mentions.has(client.user)) {
+  if (message.mentions.users.size === 1 && message.mentions.users.has(client.user.id) && !message.reference) {
     const embed = new EmbedBuilder()
       .setColor(0x000000)
       .setTitle('Command Usage')
