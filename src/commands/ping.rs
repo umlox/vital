@@ -16,3 +16,6 @@ pub async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 
     Ok(())
 }
+
+
+
